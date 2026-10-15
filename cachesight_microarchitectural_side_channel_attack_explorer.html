@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CacheSight // Side-Channel & Microarchitectural Explorer</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'Menlo', 'monospace'],
+                    },
+                }
+            }
+        }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        /* Smooth transitions for interactive elements */
+        .cache-line-card { transition: all 0.25s ease; }
+        .step-active { border-color: #6366f1; background-color: #f5f3ff; }
+    </style>
+</head>
+<body class="min-h-full text-slate-800 flex flex-col antialiased bg-slate-50/80">
+
+    <!-- Header / Navigation -->
+    <header class="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200/80">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center space-x-3">
+                    <div class="w-9 h-9 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-sm shadow-indigo-200">
+                        ⚡
+                    </div>
+                    <div>
+                        <div class="flex items-center space-x-2">
+                            <span class="font-bold text-slate-900 tracking-tight text-lg">CacheSight</span>
+                            <span class="text-xs font-mono text-slate-400">// Microarchitectural Attack Lab</span>
+                        </div>
+                        <p class="text-xs text-slate-500 hidden sm:block">Interactive Side-Channel Attack & Algorithmic Security Visualizer</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-100">
+                        High School CS Module
+                    </span>
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-100">
+                        Interactive Sandbox
+                    </span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
+
+        <!-- Intro Hero Section -->
+        <section class="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200/80 shadow-sm">
+            <div class="max-w-3xl space-y-3">
+                <div class="inline-flex items-center space-x-2 text-xs font-semibold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md">
+                    <span>Hardware Vulnerability & Timing Attacks</span>
+                </div>
+                <h1 class="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
+                    How CPU Speed Optimizations Secretly Leak Private Passwords
+                </h1>
+                <p class="text-slate-600 leading-relaxed text-sm sm:text-base">
+                    Modern CPUs use extremely fast internal memory called <span class="font-semibold text-slate-800">Caches</span> to store frequently accessed data. However, reading from a Cache takes ~2 nanoseconds, while reading from Main RAM takes ~100 nanoseconds. 
+                    Attackers can exploit this timing difference to reconstruct secret cryptographic keys without ever reading the memory directly!
+                </p>
+            </div>
+        </section>
+
+        <!-- Interactive Attack Simulator Grid (Two-Column Layout) -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+
+            <!-- Control Panel & Attack Setup (Left 4 cols) -->
+            <div class="lg:col-span-4 space-y-6">
+                
+                <!-- Configuration Card -->
+                <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-5">
+                    <h2 class="text-base font-semibold text-slate-900 flex items-center justify-between">
+                        <span>1. Target Configuration</span>
+                        <span class="text-xs font-mono font-normal text-slate-400">Victim Process</span>
+                    </h2>
+
+                    <!-- Secret Key Setting -->
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">Target Secret Character Array (Index 0-7)</label>
+                        <div class="flex items-center space-x-2">
+                            <input id="secretKeyInput" type="text" value="A, D, F" class="flex-1 font-mono text-sm px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none uppercase" placeholder="E.g. A, D, G">
+                            <button onclick="updateSecretKey()" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs rounded-lg transition-colors">Set</button>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-1">Maps to Memory Cache Lines (Line 0 to Line 7)</p>
+                    </div>
+
+                    <!-- Algorithm Mode Selection -->
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">Algorithm Implementation</label>
+                        <div class="grid grid-cols-1 gap-2">
+                            <button id="modeInsecureBtn" onclick="setMode('insecure')" class="w-full text-left p-3 rounded-lg border-2 border-indigo-600 bg-indigo-50/50 flex items-start space-x-3 transition-all">
+                                <div class="mt-0.5 text-indigo-600 font-bold text-sm">🚨</div>
+                                <div>
+                                    <div class="text-xs font-semibold text-slate-900">Insecure Lookup Table</div>
+                                    <div class="text-[11px] text-slate-500 leading-tight mt-0.5">Accesses specific cache line based on secret input value.</div>
+                                </div>
+                            </button>
+
+                            <button id="modeSecureBtn" onclick="setMode('secure')" class="w-full text-left p-3 rounded-lg border border-slate-200 hover:border-slate-300 bg-white flex items-start space-x-3 transition-all">
+                                <div class="mt-0.5 text-slate-400 font-bold text-sm">🛡️</div>
+                                <div>
+                                    <div class="text-xs font-semibold text-slate-900">Constant-Time Protection</div>
+                                    <div class="text-[11px] text-slate-500 leading-tight mt-0.5">Dummy reads touch all lines equally or use arithmetic masks.</div>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step-By-Step Controls -->
+                <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-base font-semibold text-slate-900">2. Attack Sequence</h2>
+                        <span id="currentStatusBadge" class="text-xs font-mono bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full">Status: Idle</span>
+                    </div>
+
+                    <p class="text-xs text-slate-500">Perform the 3 phases of a microarchitectural Flush + Reload attack manually or automatically:</p>
+
+                    <div class="space-y-2">
+                        <button id="btnFlush" onclick="executeFlushPhase()" class="w-full py-2.5 px-4 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-medium text-xs rounded-lg flex items-center justify-between transition-colors">
+                            <span>Step 1: Flush Shared Cache (<code class="font-mono text-[11px]">clflush</code>)</span>
+                            <span class="text-rose-400">🧹</span>
+                        </button>
+
+                        <button id="btnVictim" onclick="executeVictimPhase()" class="w-full py-2.5 px-4 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 font-medium text-xs rounded-lg flex items-center justify-between transition-colors">
+                            <span>Step 2: Trigger Victim Operation</span>
+                            <span class="text-amber-400">🔑</span>
+                        </button>
+
+                        <button id="btnReload" onclick="executeReloadPhase()" class="w-full py-2.5 px-4 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-medium text-xs rounded-lg flex items-center justify-between transition-colors">
+                            <span>Step 3: Reload & Measure Latency</span>
+                            <span class="text-indigo-400">⏱️</span>
+                        </button>
+                    </div>
+
+                    <div class="pt-2 border-t border-slate-100 flex space-x-2">
+                        <button onclick="runAutoAttack()" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs rounded-lg shadow-sm transition-colors flex items-center justify-center space-x-1.5">
+                            <span>▶ Run Automated Attack</span>
+                        </button>
+                        <button onclick="resetSimulation()" class="px-3 py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-600 font-medium text-xs rounded-lg transition-colors">
+                            Reset
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Visual Cache Matrix & Latency Chart (Right 8 cols) -->
+            <div class="lg:col-span-8 space-y-6">
+
+                <!-- Memory Architecture State -->
+                <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-base font-semibold text-slate-900">CPU Cache & Main RAM Matrix</h2>
+                            <p class="text-xs text-slate-500">Shared Virtual Memory Lines across process boundary</p>
+                        </div>
+                        <div class="flex items-center space-x-3 text-xs">
+                            <span class="flex items-center"><span class="w-3 h-3 rounded-full bg-slate-200 mr-1.5"></span>Cold (RAM: ~100ns)</span>
+                            <span class="flex items-center"><span class="w-3 h-3 rounded-full bg-emerald-500 mr-1.5 shadow-sm shadow-emerald-200"></span>Cached (Hot L1: ~2ns)</span>
+                        </div>
+                    </div>
+
+                    <!-- Cache Line Cards Grid -->
+                    <div id="cacheGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <!-- Generated dynamically via JS -->
+                    </div>
+                </div>
+
+                <!-- Real-Time Latency Chart Canvas -->
+                <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-base font-semibold text-slate-900">Side-Channel Latency Oscilloscope</h2>
+                            <p class="text-xs text-slate-500">Measured read cycles ($RDTSC$ instruction timer resolution)</p>
+                        </div>
+                        <div class="text-xs font-mono text-slate-400">
+                            Threshold: <span class="text-rose-600 font-bold">15ns</span> (Hit &lt; 15ns &lt; Miss)
+                        </div>
+                    </div>
+
+                    <div class="relative h-48 w-full bg-slate-900 rounded-lg p-3 overflow-hidden">
+                        <canvas id="latencyChart" class="w-full h-full"></canvas>
+                    </div>
+                </div>
+
+                <!-- Recovered Secret Terminal -->
+                <div class="bg-slate-900 rounded-xl p-4 text-slate-100 font-mono text-xs space-y-2 border border-slate-800 shadow-md">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2 text-slate-400">
+                        <span>[ATTACKER_TERMINAL] // Reconstructed Payload</span>
+                        <span id="reconstructionProgress" class="text-emerald-400">0 / 8 Lines Probed</span>
+                    </div>
+                    <div class="flex items-center justify-between pt-1">
+                        <div class="text-slate-400">Victim Secret Array: <span id="actualSecretDisplay" class="text-amber-400 font-bold">***</span></div>
+                        <div class="text-slate-400">Spy Extracted Array: <span id="extractedSecretDisplay" class="text-emerald-400 font-bold">___</span></div>
+                    </div>
+                    <div id="logOutput" class="text-[11px] text-slate-400 h-16 overflow-y-auto leading-relaxed space-y-0.5 pt-2 border-t border-slate-800/60">
+                        <div>&gt; System initialized. Ready to execute side-channel probe...</div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Educational Step-by-Step Walkthrough Section -->
+        <section class="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200/80 shadow-sm space-y-6">
+            <div class="border-b border-slate-100 pb-4">
+                <span class="text-xs font-semibold text-indigo-600 uppercase tracking-wider">Concept Deep Dive</span>
+                <h2 class="text-xl font-bold text-slate-900 mt-1">Understanding the Flush + Reload Attack Mechanics</h2>
+                <p class="text-sm text-slate-500 mt-1">How an isolated, unprivileged attacker process extracts secrets across security boundaries.</p>
+            </div>
+
+            <!-- Interactive Step Flow -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                
+                <div class="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-2">
+                    <div class="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center">1</div>
+                    <h3 class="font-semibold text-sm text-slate-900">Flush Phase</h3>
+                    <p class="text-xs text-slate-600 leading-relaxed">
+                        The attacker issues the <code class="bg-slate-200 px-1 py-0.5 rounded text-[11px]">clflush</code> instruction to evict all shared memory lines from the CPU cache back into main RAM.
+                    </p>
+                </div>
+
+                <div class="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-2">
+                    <div class="w-7 h-7 rounded-full bg-amber-100 text-amber-700 font-bold text-xs flex items-center justify-center">2</div>
+                    <h3 class="font-semibold text-sm text-slate-900">Victim Phase</h3>
+                    <p class="text-xs text-slate-600 leading-relaxed">
+                        The victim executes its algorithm (e.g. RSA decryption or lookup table). It accesses specific memory addresses depending on its secret key.
+                    </p>
+                </div>
+
+                <div class="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-2">
+                    <div class="w-7 h-7 rounded-full bg-emerald-100 text-emerald-700 font-bold text-xs flex items-center justify-center">3</div>
+                    <h3 class="font-semibold text-sm text-slate-900">Reload / Probe</h3>
+                    <p class="text-xs text-slate-600 leading-relaxed">
+                        The attacker measures access time for each shared memory line using CPU high-resolution timers (<code class="bg-slate-200 px-1 py-0.5 rounded text-[11px]">rdtsc</code>).
+                    </p>
+                </div>
+
+                <div class="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-2">
+                    <div class="w-7 h-7 rounded-full bg-rose-100 text-rose-700 font-bold text-xs flex items-center justify-center">4</div>
+                    <h3 class="font-semibold text-sm text-slate-900">Secret Deduction</h3>
+                    <p class="text-xs text-slate-600 leading-relaxed">
+                        Fast access (~2ns) = Cache Hit! The victim touched that line. Slow access (~100ns) = Cache Miss. The secret is deduced!
+                    </p>
+                </div>
+
+            </div>
+
+            <!-- Complexity & Mitigation Breakdown -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-100">
+                <div class="space-y-2">
+                    <h4 class="text-sm font-semibold text-slate-900 flex items-center">
+                        <span class="mr-2">❌</span> Algorithmic Complexity Vulnerability: <span class="font-mono text-rose-600 ml-1">O(Value)</span>
+                    </h4>
+                    <p class="text-xs text-slate-600 leading-relaxed">
+                        In naive table lookups, memory execution time scales depending on input value secrets: <code class="bg-slate-100 px-1 py-0.5 rounded text-slate-800">array[secret_byte]</code>. This creates an unintentional timing side-channel observable by external processes.
+                    </p>
+                </div>
+
+                <div class="space-y-2">
+                    <h4 class="text-sm font-semibold text-slate-900 flex items-center">
+                        <span class="mr-2">✅</span> Constant-Time Defense Mitigation: <span class="font-mono text-emerald-600 ml-1">O(1)</span>
+                    </h4>
+                    <p class="text-xs text-slate-600 leading-relaxed">
+                        Secure cryptographic code uses constant-time algorithms. By executing uniform bitwise arithmetic operations without branching or table lookups, access times remain identical regardless of secret key values.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- High School Self-Check Quiz Section -->
+        <section class="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200/80 shadow-sm space-y-6">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+                <div>
+                    <span class="text-xs font-semibold text-indigo-600 uppercase tracking-wider">Knowledge Check</span>
+                    <h2 class="text-xl font-bold text-slate-900 mt-1">Side-Channel Attack Self-Quiz</h2>
+                </div>
+                <span class="text-xs font-mono text-slate-400">3 Questions</span>
+            </div>
+
+            <div class="space-y-6" id="quizContainer">
+                
+                <!-- Q1 -->
+                <div class="space-y-3">
+                    <p class="text-sm font-medium text-slate-900">1. Why is a CPU cache hit significantly faster than reading from main RAM?</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                        <button onclick="checkQuiz(1, false, this)" class="p-3 text-left border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">A) Main RAM uses slower laser signals</button>
+                        <button onclick="checkQuiz(1, true, this)" class="p-3 text-left border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">B) Caches are physically located directly on the CPU die</button>
+                        <button onclick="checkQuiz(1, false, this)" class="p-3 text-left border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">C) Main RAM requires explicit password permission</button>
+                        <button onclick="checkQuiz(1, false, this)" class="p-3 text-left border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">D) Caches use data compression software</button>
+                    </div>
+                    <div id="q1-feedback" class="text-xs hidden p-2 rounded-md"></div>
+                </div>
+
+                <!-- Q2 -->
+                <div class="space-y-3 pt-4 border-t border-slate-100">
+                    <p class="text-sm font-medium text-slate-900">2. In a Flush + Reload attack, what does a fast access time (~2ns) to line 4 reveal to the spy?</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                        <button onclick="checkQuiz(2, false, this)" class="p-3 text-left border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">A) Line 4 was never accessed by anyone</button>
+                        <button onclick="checkQuiz(2, true, this)" class="p-3 text-left border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">B) The victim process accessed line 4 during its execution</button>
+                        <button onclick="checkQuiz(2, false, this)" class="p-3 text-left border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">C) The computer is running out of memory</button>
+                        <button onclick="checkQuiz(2, false, this)" class="p-3 text-left border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">D) Line 4 contains an encrypted firewall key</button>
+                    </div>
+                    <div id="q2-feedback" class="text-xs hidden p-2 rounded-md"></div>
+                </div>
+
+                <!-- Q3 -->
+                <div class="space-y-3 pt-4 border-t border-slate-100">
+                    <p class="text-sm font-medium text-slate-900">3. What is the primary software defense against timing side-channel vulnerabilities?</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                        <button onclick="checkQuiz(3, false, this)" class="p-3 text-left border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">A) Adding artificial sleep delays randomly</button>
+                        <button onclick="checkQuiz(3, false, this)" class="p-3 text-left border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">B) Increasing CPU clock speeds</button>
+                        <button onclick="checkQuiz(3, true, this)" class="p-3 text-left border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">C) Writing constant-time algorithms (independent of secret values)</button>
+                        <button onclick="checkQuiz(3, false, this)" class="p-3 text-left border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">D) Deleting the CPU cache completely</button>
+                    </div>
+                    <div id="q3-feedback" class="text-xs hidden p-2 rounded-md"></div>
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-6 mt-12">
+        <div class="max-w-7xl mx-auto px-4 text-center text-xs text-slate-400 space-y-1">
+            <p>CacheSight // Created for High School CS & Cybersecurity Learning</p>
+            <p>Demonstration of Microarchitectural Side-Channels & Algorithmic Complexity Mitigations.</p>
+        </div>
+    </footer>
+
+    <!-- Application JavaScript Logic -->
+    <script>
+        // --- State Management ---
+        const CACHE_SIZE = 8;
+        const LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+        
+        let state = {
+            mode: 'insecure', // 'insecure' | 'secure'
+            secretIndices: [0, 3, 5], // Maps to 'A', 'D', 'F'
+            cacheState: Array(CACHE_SIZE).fill(false), // true = Cached (Hot), false = RAM (Cold)
+            latencies: Array(CACHE_SIZE).fill(0), // Measured nanoseconds
+            probed: Array(CACHE_SIZE).fill(false),
+            extracted: Array(CACHE_SIZE).fill(null),
+            currentStep: 'idle'
+        };
+
+        // --- Initialization ---
+        window.addEventListener('load', () => {
+            renderCacheGrid();
+            initCanvas();
+            updateSecretKey();
+            log('System initialized. Configured for Flush + Reload analysis.');
+        });
+
+        // --- UI Rendering Functions ---
+        function renderCacheGrid() {
+            const grid = document.getElementById('cacheGrid');
+            grid.innerHTML = '';
+
+            for (let i = 0; i < CACHE_SIZE; i++) {
+                const isCached = state.cacheState[i];
+                const isProbed = state.probed[i];
+                const charLabel = LABELS[i];
+
+                const card = document.createElement('div');
+                card.className = `cache-line-card p-3 rounded-xl border flex flex-col justify-between h-24 ${
+                    isCached 
+                        ? 'bg-emerald-50/60 border-emerald-300 shadow-sm' 
+                        : 'bg-slate-50 border-slate-200'
+                } ${isProbed ? 'ring-2 ring-indigo-500' : ''}`;
+
+                card.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <span class="font-mono text-xs font-semibold text-slate-500">Line ${i} [${charLabel}]</span>
+                        <span class="w-2.5 h-2.5 rounded-full ${isCached ? 'bg-emerald-500 shadow-sm shadow-emerald-200' : 'bg-slate-300'}"></span>
+                    </div>
+                    <div class="space-y-1">
+                        <div class="text-[11px] font-mono text-slate-400">
+                            ${isCached ? '<span class="text-emerald-700 font-semibold">L1 CACHE (HOT)</span>' : 'MAIN RAM (COLD)'}
+                        </div>
+                        <div class="text-xs font-mono font-bold text-slate-800">
+                            ${state.latencies[i] ? state.latencies[i] + ' ns' : '-- ns'}
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            }
+        }
+
+        // --- Mode & Key Management ---
+        function setMode(mode) {
+            state.mode = mode;
+            const insecureBtn = document.getElementById('modeInsecureBtn');
+            const secureBtn = document.getElementById('modeSecureBtn');
+
+            if (mode === 'insecure') {
+                insecureBtn.className = "w-full text-left p-3 rounded-lg border-2 border-indigo-600 bg-indigo-50/50 flex items-start space-x-3 transition-all";
+                secureBtn.className = "w-full text-left p-3 rounded-lg border border-slate-200 hover:border-slate-300 bg-white flex items-start space-x-3 transition-all";
+                log('Switched algorithm mode to: INSECURE LOOKUP TABLE.');
+            } else {
+                secureBtn.className = "w-full text-left p-3 rounded-lg border-2 border-indigo-600 bg-indigo-50/50 flex items-start space-x-3 transition-all";
+                insecureBtn.className = "w-full text-left p-3 rounded-lg border border-slate-200 hover:border-slate-300 bg-white flex items-start space-x-3 transition-all";
+                log('Switched algorithm mode to: CONSTANT-TIME DEFENSE.');
+            }
+        }
+
+        function updateSecretKey() {
+            const raw = document.getElementById('secretKeyInput').value.toUpperCase();
+            const chars = raw.split(',').map(c => c.trim()).filter(c => c.length > 0);
+            
+            const indices = [];
+            chars.forEach(ch => {
+                const idx = LABELS.indexOf(ch);
+                if (idx !== -1 && !indices.includes(idx)) {
+                    indices.push(idx);
+                }
+            });
+
+            if (indices.length === 0) {
+                alert('Please enter valid character keys from A to H (e.g. "A, D, F")');
+                return;
+            }
+
+            state.secretIndices = indices;
+            document.getElementById('actualSecretDisplay').textContent = indices.map(i => LABELS[i]).join(', ');
+            log(`Victim secret set to: [ ${indices.map(i => LABELS[i]).join(', ')} ]`);
+            resetSimulation();
+        }
+
+        // --- Core Attack Phases ---
+
+        // Step 1: Flush
+        function executeFlushPhase() {
+            state.cacheState.fill(false); // Evict all cache lines to RAM
+            state.latencies.fill(0);
+            state.probed.fill(false);
+            state.extracted.fill(null);
+            
+            updateStatus('Flushed', 'bg-rose-100 text-rose-700');
+            renderCacheGrid();
+            drawChart();
+            updateTerminalDisplays();
+            log('STAGE 1: Executed `clflush`. Cache lines evicted to RAM.');
+        }
+
+        // Step 2: Victim Execution
+        function executeVictimPhase() {
+            if (state.mode === 'insecure') {
+                // Secret indices get loaded into cache
+                state.secretIndices.forEach(idx => {
+                    state.cacheState[idx] = true;
+                });
+                log(`STAGE 2: Victim ran (INSECURE). Secret accessed cache lines: [${state.secretIndices.map(i => LABELS[i]).join(', ')}].`);
+            } else {
+                // Constant time: Dummy operations touch ALL cache lines uniformly
+                for (let i = 0; i < CACHE_SIZE; i++) {
+                    state.cacheState[i] = true;
+                }
+                log(`STAGE 2: Victim ran (CONSTANT-TIME). All cache lines accessed uniformly.`);
+            }
+
+            updateStatus('Victim Executed', 'bg-amber-100 text-amber-700');
+            renderCacheGrid();
+            drawChart();
+        }
+
+        // Step 3: Probe & Measure
+        function executeReloadPhase() {
+            let hitsFound = [];
+
+            for (let i = 0; i < CACHE_SIZE; i++) {
+                state.probed[i] = true;
+                // Add tiny realistic latency jitter
+                if (state.cacheState[i]) {
+                    state.latencies[i] = Math.floor(2 + Math.random() * 4); // ~2-5ns (Hit)
+                    hitsFound.push(LABELS[i]);
+                    state.extracted[i] = LABELS[i];
+                } else {
+                    state.latencies[i] = Math.floor(95 + Math.random() * 20); // ~95-115ns (Miss)
+                    state.extracted[i] = null;
+                }
+            }
+
+            updateStatus('Probed / Reloaded', 'bg-emerald-100 text-emerald-700');
+            renderCacheGrid();
+            drawChart();
+            updateTerminalDisplays();
+
+            if (state.mode === 'insecure') {
+                log(`STAGE 3: Probe complete. Cache Hits detected on lines: [${hitsFound.join(', ')}]. Secret reconstructed!`);
+            } else {
+                log(`STAGE 3: Probe complete. ALL lines hit cache uniformly. Secret remains unextractable!`);
+            }
+        }
+
+        // Run Full Auto Attack Sequence with Timers
+        async function runAutoAttack() {
+            log('--- Starting Automated Flush + Reload Attack ---');
+            executeFlushPhase();
+            await sleep(900);
+            
+            executeVictimPhase();
+            await sleep(900);
+
+            executeReloadPhase();
+            log('--- Attack Sequence Complete ---');
+        }
+
+        function resetSimulation() {
+            state.cacheState.fill(false);
+            state.latencies.fill(0);
+            state.probed.fill(false);
+            state.extracted.fill(null);
+            updateStatus('Idle', 'bg-slate-100 text-slate-600');
+            renderCacheGrid();
+            drawChart();
+            updateTerminalDisplays();
+            log('Simulation reset.');
+        }
+
+        // --- Terminal & Helper Functions ---
+        function updateStatus(text, classes) {
+            const badge = document.getElementById('currentStatusBadge');
+            badge.textContent = `Status: ${text}`;
+            badge.className = `text-xs font-mono px-2.5 py-1 rounded-full ${classes}`;
+        }
+
+        function updateTerminalDisplays() {
+            const probedCount = state.probed.filter(Boolean).length;
+            document.getElementById('reconstructionProgress').textContent = `${probedCount} / ${CACHE_SIZE} Lines Probed`;
+
+            const extractedList = state.extracted.filter(v => v !== null);
+            document.getElementById('extractedSecretDisplay').textContent = extractedList.length > 0 ? extractedList.join(', ') : 'None';
+        }
+
+        function log(msg) {
+            const out = document.getElementById('logOutput');
+            const line = document.createElement('div');
+            line.innerHTML = `<span class="text-slate-500">&gt; [${new Date().toLocaleTimeString().split(' ')[0]}]</span> ${msg}`;
+            out.appendChild(line);
+            out.scrollTop = out.scrollHeight;
+        }
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // --- Canvas Latency Oscilloscope Chart ---
+        let canvas, ctx;
+
+        function initCanvas() {
+            canvas = document.getElementById('latencyChart');
+            ctx = canvas.getContext('2d');
+            resizeCanvas();
+            window.addEventListener('resize', () => {
+                resizeCanvas();
+                drawChart();
+            });
+            drawChart();
+        }
+
+        function resizeCanvas() {
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * window.devicePixelRatio;
+            canvas.height = rect.height * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+
+        function drawChart() {
+            if (!ctx) return;
+            const w = canvas.getBoundingClientRect().width;
+            const h = canvas.getBoundingClientRect().height;
+
+            ctx.clearRect(0, 0, w, h);
+
+            // Draw Background Gridlines
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 1;
+            for (let y = 0; y < h; y += 30) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(w, y);
+                ctx.stroke();
+            }
+
+            // Draw Threshold Line (15ns)
+            const maxNs = 120;
+            const thresholdY = h - (15 / maxNs) * (h - 20) - 10;
+
+            ctx.strokeStyle = '#ef4444'; // Rose/Red
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            ctx.moveTo(0, thresholdY);
+            ctx.lineTo(w, thresholdY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            ctx.fillStyle = '#ef4444';
+            ctx.font = '10px JetBrains Mono';
+            ctx.fillText('Cache Hit Threshold (15ns)', 10, thresholdY - 4);
+
+            // Draw Latency Bars
+            const barWidth = (w - 40) / CACHE_SIZE;
+            
+            for (let i = 0; i < CACHE_SIZE; i++) {
+                const ns = state.latencies[i];
+                const x = 20 + i * barWidth;
+                const barHeight = ns > 0 ? (ns / maxNs) * (h - 30) : 2;
+                const y = h - barHeight - 15;
+
+                // Color based on hit vs miss
+                if (ns > 0) {
+                    if (ns < 15) {
+                        ctx.fillStyle = '#10b981'; // Emerald (Hit)
+                    } else {
+                        ctx.fillStyle = '#64748b'; // Slate (Miss)
+                    }
+                } else {
+                    ctx.fillStyle = '#334155'; // Unprobed
+                }
+
+                // Draw Bar
+                ctx.fillRect(x + 4, y, barWidth - 8, barHeight);
+
+                // Bar Labels
+                ctx.fillStyle = '#94a3b8';
+                ctx.font = '10px JetBrains Mono';
+                ctx.fillText(LABELS[i], x + barWidth / 2 - 3, h - 3);
+            }
+        }
+
+        // --- Interactive Quiz Checking ---
+        function checkQuiz(qNum, isCorrect, btnElement) {
+            const feedbackEl = document.getElementById(`q${qNum}-feedback`);
+            const parent = btnElement.parentElement;
+            
+            // Reset button styles in this question group
+            Array.from(parent.children).forEach(btn => {
+                btn.className = "p-3 text-left border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors";
+            });
+
+            feedbackEl.classList.remove('hidden', 'bg-emerald-50', 'text-emerald-800', 'bg-rose-50', 'text-rose-800');
+
+            if (isCorrect) {
+                btnElement.className = "p-3 text-left border-2 border-emerald-500 bg-emerald-50 text-emerald-900 rounded-lg font-semibold";
+                feedbackEl.classList.add('bg-emerald-50', 'text-emerald-800', 'border', 'border-emerald-200');
+                feedbackEl.innerHTML = "<strong>Correct! 🎉</strong> " + getQuizExplanation(qNum, true);
+            } else {
+                btnElement.className = "p-3 text-left border-2 border-rose-400 bg-rose-50 text-rose-900 rounded-lg";
+                feedbackEl.classList.add('bg-rose-50', 'text-rose-800', 'border', 'border-rose-200');
+                feedbackEl.innerHTML = "<strong>Incorrect.</strong> " + getQuizExplanation(qNum, false);
+            }
+        }
+
+        function getQuizExplanation(qNum, correct) {
+            if (qNum === 1) {
+                return "CPU caches are made of fast Static RAM (SRAM) sitting on the same silicon chip as the CPU core, eliminating long bus traversal delays.";
+            } else if (qNum === 2) {
+                return "Because the cache line was flushed beforehand, a fast 2ns access time proves the victim process loaded line 4 into cache while handling its secret!";
+            } else {
+                return "Constant-time programming ensures code performs identical memory operations and execution paths regardless of secret values, eliminating side-channel leaks.";
+            }
+        }
+    </script>
+</body>
+</html>
